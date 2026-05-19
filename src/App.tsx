@@ -3,7 +3,7 @@ import { AnalysisPager } from './components/AnalysisPager';
 import { ChartCard } from './components/ChartCard';
 import { UploadPanel } from './components/UploadPanel';
 import { ReportSummary } from './components/ReportSummary';
-import { StudentSelector } from './components/StudentSelector';
+import { StudentTrendCarousel } from './components/StudentTrendCarousel';
 import { StudentTable } from './components/StudentTable';
 import { parseWorkbook } from './features/excel/parseWorkbook';
 import {
@@ -106,11 +106,7 @@ sampleReport.students = sampleReport.students.map((student) => ({
   absentExamNames: buildAbsentExamNames(sampleReport.exams, student.examStatuses),
 }));
 
-sampleReport.charts = buildCharts(
-  sampleReport.students.find((student) => student.id === sampleReport.selectedStudentId) ?? sampleReport.students[0],
-  sampleReport.exams,
-  sampleReport.students,
-);
+sampleReport.charts = buildCharts(sampleReport.exams, sampleReport.students);
 
 function App() {
   const [report, setReport] = useState<ReportPlan>(sampleReport);
@@ -154,7 +150,7 @@ function App() {
       return {
         ...currentReport,
         selectedStudentId: studentId,
-        charts: buildCharts(nextStudent, currentReport.exams, currentReport.students),
+        charts: buildCharts(currentReport.exams, currentReport.students),
       };
     });
   };
@@ -206,14 +202,16 @@ function App() {
               {report.sourceFileName} / {report.sheetName} / 当前个人趋势：{selectedStudent.name}
             </p>
           </div>
-          <StudentSelector
-            students={report.students}
-            selectedStudentId={report.selectedStudentId}
-            onChange={handleStudentChange}
-          />
         </div>
         <ReportSummary report={report} />
       </section>
+
+      <StudentTrendCarousel
+        exams={report.exams}
+        students={report.students}
+        selectedStudentId={report.selectedStudentId}
+        onStudentChange={handleStudentChange}
+      />
 
       <section className="chart-gallery">
         {report.charts.map((chart) => (

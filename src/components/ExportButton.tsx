@@ -3,9 +3,10 @@ import * as echarts from 'echarts';
 type ExportButtonProps = {
   chartContainerRef: React.RefObject<HTMLDivElement | null>;
   fileName: string;
+  label?: string;
 };
 
-export function ExportButton({ chartContainerRef, fileName }: ExportButtonProps) {
+export function ExportButton({ chartContainerRef, fileName, label = '导出 PNG' }: ExportButtonProps) {
   const exportPng = () => {
     if (!chartContainerRef.current) {
       return;
@@ -30,7 +31,7 @@ export function ExportButton({ chartContainerRef, fileName }: ExportButtonProps)
 
   return (
     <button className="secondary-button" type="button" onClick={exportPng}>
-      导出 PNG
+      {label}
     </button>
   );
 }

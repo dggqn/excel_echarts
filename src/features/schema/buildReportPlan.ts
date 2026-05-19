@@ -3,7 +3,6 @@ import {
   buildImprovementOption,
   buildLatestRankingOption,
   buildScoreBandOption,
-  buildStudentTrendOption,
 } from '../charts/reportCharts';
 import {
   buildAbsentExamNames,
@@ -41,7 +40,7 @@ export function buildReportPlan(workbook: ParsedWorkbook): ReportPlan {
   }
 
   const selectedStudent = students.find((student) => student.name === '宋天麦') ?? students[0];
-  const charts = buildCharts(selectedStudent, exams, students);
+  const charts = buildCharts(exams, students);
 
   return {
     title: '成绩单多图分析报告',
@@ -55,14 +54,8 @@ export function buildReportPlan(workbook: ParsedWorkbook): ReportPlan {
   };
 }
 
-export function buildCharts(selectedStudent: StudentRecord, exams: ExamInfo[], students: StudentRecord[]): ChartSpec[] {
+export function buildCharts(exams: ExamInfo[], students: StudentRecord[]): ChartSpec[] {
   return [
-    {
-      id: 'student-trend',
-      title: `${selectedStudent.name} - 个人成绩趋势`,
-      description: '对比个人成绩、正确题数和班级平均分，识别进步与波动。',
-      option: buildStudentTrendOption(selectedStudent, exams, students),
-    },
     {
       id: 'class-trend',
       title: '班级平均分与达标率趋势',

@@ -1,4 +1,5 @@
 import type { ChartOption, ExamInfo, StudentRecord } from '../../lib/types';
+import { getDisplayScoreForRank } from '../rules/scoreRules';
 
 const palette = {
   ink: '#18312d',
@@ -64,12 +65,18 @@ export function buildStudentTrendOption(
       {
         name: '学生成绩',
         type: 'line',
-        data: student.scores,
+        data: student.displayScores,
         smooth: true,
         symbol: 'circle',
         symbolSize: 10,
         lineStyle: { width: 3 },
-        label: { show: true, position: 'top', color: palette.teal, fontWeight: 700 },
+        label: {
+          show: true,
+          position: 'top',
+          color: palette.teal,
+          fontWeight: 700,
+          formatter: ({ dataIndex, value }) => (student.examStatuses[dataIndex] === 'absent' ? '缺考' : formatValue(value)),
+        },
         markArea: {
           silent: true,
           itemStyle: { color: 'rgba(43, 126, 77, 0.08)' },
@@ -161,8 +168,12 @@ export function buildLatestRankingOption(students: StudentRecord[], exams: ExamI
   const latestExam = exams.at(-1);
   const latestIndex = exams.length - 1;
   const ranked = [...students]
-    .map((student) => ({ name: student.name, score: student.scores[latestIndex] }))
-    .filter((item): item is { name: string; score: number } => item.score !== null)
+    .map((student) => ({
+      name: student.name,
+      score: getDisplayScoreForRank(student.scores[latestIndex], student.examStatuses[latestIndex]),
+      status: student.examStatuses[latestIndex],
+    }))
+    .filter((item): item is { name: string; score: number; status: StudentRecord['examStatuses'][number] } => item.score !== null)
     .sort((a, b) => b.score - a.score);
 
   return {
@@ -188,8 +199,23 @@ export function buildLatestRankingOption(students: StudentRecord[], exams: ExamI
         type: 'bar',
         data: ranked.map((item) => item.score).reverse(),
         barWidth: 18,
-        itemStyle: { borderRadius: [0, 10, 10, 0] },
-        label: { show: true, position: 'right', color: palette.teal, fontWeight: 700 },
+        itemStyle: {
+          borderRadius: [0, 10, 10, 0],
+          color: ({ dataIndex }) => {
+            const reversed = ranked.slice().reverse();
+            return reversed[dataIndex]?.status === 'absent' ? palette.berry : palette.teal;
+          },
+        },
+        label: {
+          show: true,
+          position: 'right',
+          color: palette.teal,
+          fontWeight: 700,
+          formatter: ({ dataIndex, value }) => {
+            const reversed = ranked.slice().reverse();
+            return reversed[dataIndex]?.status === 'absent' ? '缺考' : formatValue(value);
+          },
+        },
       },
     ],
   };

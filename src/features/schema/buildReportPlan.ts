@@ -5,6 +5,15 @@ import {
   buildScoreBandOption,
   buildStudentTrendOption,
 } from '../charts/reportCharts';
+import {
+  buildAbsentExamNames,
+  calculateAverageScore,
+  calculateImprovement,
+  getFirstValidScore,
+  getLastValidScore,
+  parseCorrectCountCell,
+  parseScoreCell,
+} from '../rules/scoreRules';
 import type { CellValue, ChartSpec, ExamInfo, ParsedWorkbook, ReportPlan, SheetMatrix, StudentRecord } from '../../lib/types';
 
 const summaryLabels = {
@@ -117,25 +126,29 @@ function parseStudents(matrix: SheetMatrix, exams: ExamInfo[]): StudentRecord[] 
     .slice(2)
     .filter((row) => isStudentRow(row))
     .map((row) => {
-      const scores = exams.map((exam) => toNumber(row[exam.scoreColumn]));
-      const correctCounts = exams.map((exam) => toNumber(row[exam.correctColumn]));
-      const firstScore = firstNumber(scores);
-      const lastScore = lastNumber(scores);
-      const validScores = scores.filter((score): score is number => score !== null);
+      const parsedScores = exams.map((exam) => parseScoreCell(row[exam.scoreColumn]));
+      const scores = parsedScores.map((score) => score.rawScore);
+      const displayScores = parsedScores.map((score) => score.displayScore);
+      const examStatuses = parsedScores.map((score) => score.status);
+      const correctCounts = exams.map((exam) => parseCorrectCountCell(row[exam.correctColumn]));
+      const firstScore = getFirstValidScore(scores);
+      const lastScore = getLastValidScore(scores);
+      const { improvement, note } = calculateImprovement(scores, examStatuses);
 
       return {
         id: toText(row[2]) || toText(row[0]) || `student-${toText(row[1])}`,
         name: toText(row[1]) || '未命名学生',
         studentNo: toText(row[2]),
         scores,
+        displayScores,
         correctCounts,
+        examStatuses,
+        absentExamNames: buildAbsentExamNames(exams, examStatuses),
         firstScore,
         lastScore,
-        improvement: firstScore !== null && lastScore !== null ? Number((lastScore - firstScore).toFixed(1)) : null,
-        averageScore:
-          validScores.length > 0
-            ? Number((validScores.reduce((total, score) => total + score, 0) / validScores.length).toFixed(1))
-            : null,
+        improvement,
+        improvementNote: note,
+        averageScore: calculateAverageScore(scores),
       };
     });
 }
@@ -174,14 +187,6 @@ function readSummaryText(matrix: SheetMatrix, label: string, column: number) {
 
 function findSummaryRow(matrix: SheetMatrix, label: string) {
   return matrix.find((row) => toText(row[0]).includes(label));
-}
-
-function firstNumber(values: Array<number | null>) {
-  return values.find((value): value is number => value !== null) ?? null;
-}
-
-function lastNumber(values: Array<number | null>) {
-  return [...values].reverse().find((value): value is number => value !== null) ?? null;
 }
 
 function toText(value: unknown) {

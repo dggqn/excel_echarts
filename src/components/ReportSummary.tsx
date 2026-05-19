@@ -8,11 +8,11 @@ export function ReportSummary({ report }: ReportSummaryProps) {
   const latestExam = report.exams.at(-1);
   const latestIndex = report.exams.length - 1;
   const latestScores = report.students
-    .map((student) => student.scores[latestIndex])
+    .map((student) => student.displayScores[latestIndex])
     .filter((score): score is number => score !== null);
   const topStudent = [...report.students]
-    .filter((student) => student.scores[latestIndex] !== null)
-    .sort((a, b) => Number(b.scores[latestIndex]) - Number(a.scores[latestIndex]))[0];
+    .filter((student) => student.displayScores[latestIndex] !== null)
+    .sort((a, b) => Number(b.displayScores[latestIndex]) - Number(a.displayScores[latestIndex]))[0];
   const bestImprover = [...report.students]
     .filter((student) => student.improvement !== null)
     .sort((a, b) => Number(b.improvement) - Number(a.improvement))[0];

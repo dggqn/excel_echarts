@@ -6,8 +6,15 @@ import { ReportSummary } from './components/ReportSummary';
 import { StudentSelector } from './components/StudentSelector';
 import { StudentTable } from './components/StudentTable';
 import { parseWorkbook } from './features/excel/parseWorkbook';
+import {
+  buildAbsentExamNames,
+  calculateAverageScore,
+  calculateImprovement,
+  getFirstValidScore,
+  getLastValidScore,
+} from './features/rules/scoreRules';
 import { buildCharts, buildReportPlan } from './features/schema/buildReportPlan';
-import type { ReportPlan } from './lib/types';
+import type { ExamScoreStatus, ReportPlan } from './lib/types';
 
 const sampleExams = [
   '摸底考试（2025.08.01）',
@@ -45,16 +52,19 @@ const sampleStudents = [
     correctCounts: [8, 19, 15, null, 14, 20, 18, 16, 16, 18],
   },
 ].map((student) => {
-  const firstScore = student.scores.find((score) => score !== null) ?? null;
-  const lastScore = [...student.scores].reverse().find((score) => score !== null) ?? null;
-  const validScores = student.scores.filter((score): score is number => score !== null);
+  const examStatuses = student.scores.map(() => 'normal' as ExamScoreStatus);
+  const { improvement, note } = calculateImprovement(student.scores, examStatuses);
 
   return {
     ...student,
-    firstScore,
-    lastScore,
-    improvement: firstScore !== null && lastScore !== null ? lastScore - firstScore : null,
-    averageScore: Number((validScores.reduce((total, score) => total + score, 0) / validScores.length).toFixed(1)),
+    displayScores: student.scores.map((score) => score ?? 0),
+    examStatuses,
+    absentExamNames: buildAbsentExamNames([], examStatuses),
+    firstScore: getFirstValidScore(student.scores),
+    lastScore: getLastValidScore(student.scores),
+    improvement,
+    improvementNote: note,
+    averageScore: calculateAverageScore(student.scores),
   };
 });
 
@@ -90,6 +100,11 @@ const sampleReport: ReportPlan = {
   students: sampleStudents,
   charts: [],
 };
+
+sampleReport.students = sampleReport.students.map((student) => ({
+  ...student,
+  absentExamNames: buildAbsentExamNames(sampleReport.exams, student.examStatuses),
+}));
 
 sampleReport.charts = buildCharts(
   sampleReport.students.find((student) => student.id === sampleReport.selectedStudentId) ?? sampleReport.students[0],

@@ -44,12 +44,18 @@ export type StudentRecord = {
   name: string;
   studentNo: string;
   scores: Array<number | null>;
+  displayScores: number[];
   correctCounts: Array<number | null>;
+  examStatuses: ExamScoreStatus[];
+  absentExamNames: string[];
   firstScore: number | null;
   lastScore: number | null;
   improvement: number | null;
+  improvementNote: string;
   averageScore: number | null;
 };
+
+export type ExamScoreStatus = 'normal' | 'absent' | 'missing';
 
 export type ChartSpec = {
   id: string;

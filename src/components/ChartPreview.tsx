@@ -4,9 +4,10 @@ import type { ChartOption } from '../lib/types';
 
 type ChartPreviewProps = {
   option: ChartOption;
+  className?: string;
 };
 
-export const ChartPreview = forwardRef<HTMLDivElement, ChartPreviewProps>(({ option }, forwardedRef) => {
+export const ChartPreview = forwardRef<HTMLDivElement, ChartPreviewProps>(({ option, className = '' }, forwardedRef) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(forwardedRef, () => containerRef.current as HTMLDivElement);
@@ -31,7 +32,7 @@ export const ChartPreview = forwardRef<HTMLDivElement, ChartPreviewProps>(({ opt
     };
   }, [option]);
 
-  return <div ref={containerRef} className="chart-preview" aria-label="ECharts 图表预览" />;
+  return <div ref={containerRef} className={`chart-preview ${className}`} aria-label="ECharts 图表预览" />;
 });
 
 ChartPreview.displayName = 'ChartPreview';

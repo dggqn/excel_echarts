@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { ParsedWorkbook, SheetRow } from '../../lib/types';
+import type { CellValue, ParsedWorkbook, SheetRow } from '../../lib/types';
 
 export async function parseWorkbook(file: File): Promise<ParsedWorkbook> {
   const buffer = await file.arrayBuffer();
@@ -15,8 +15,14 @@ export async function parseWorkbook(file: File): Promise<ParsedWorkbook> {
       defval: null,
       raw: false,
     });
+    const matrix = XLSX.utils.sheet_to_json<CellValue[]>(worksheet, {
+      header: 1,
+      defval: null,
+      raw: false,
+      blankrows: false,
+    });
 
-    return { name, rows };
+    return { name, rows, matrix };
   });
 
   return {

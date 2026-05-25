@@ -13,7 +13,16 @@ import {
   parseCorrectCountCell,
   parseScoreCell,
 } from '../rules/scoreRules';
-import type { CellValue, ChartSpec, ExamInfo, ParsedWorkbook, ReportPlan, SheetMatrix, StudentRecord } from '../../lib/types';
+import type {
+  CellValue,
+  ChartSpec,
+  ExamInfo,
+  ParsedWorkbook,
+  ReportConfig,
+  ReportPlan,
+  SheetMatrix,
+  StudentRecord,
+} from '../../lib/types';
 
 const summaryLabels = {
   averageScore: '平均分',
@@ -54,31 +63,33 @@ export function buildReportPlan(workbook: ParsedWorkbook): ReportPlan {
   };
 }
 
-export function buildCharts(exams: ExamInfo[], students: StudentRecord[]): ChartSpec[] {
+export function buildCharts(exams: ExamInfo[], students: StudentRecord[], config?: ReportConfig): ChartSpec[] {
+  const chartTypes = config?.chartTypes;
+
   return [
     {
       id: 'class-trend',
       title: '班级平均分与达标率趋势',
       description: '观察平均分、及格率和优秀率随考试推进的变化。',
-      option: buildClassTrendOption(exams),
+      option: buildClassTrendOption(exams, chartTypes?.classTrend),
     },
     {
       id: 'latest-ranking',
       title: `${exams.at(-1)?.name ?? '最近一次考试'} - 学生成绩排名`,
       description: '展示最近一次考试的学生分布和头部/尾部差距。',
-      option: buildLatestRankingOption(students, exams),
+      option: buildLatestRankingOption(students, exams, chartTypes?.latestRanking),
     },
     {
       id: 'improvement',
       title: '首末考试提升幅度',
       description: '用第一次和最后一次考试差值衡量每位学生的阶段性变化。',
-      option: buildImprovementOption(students),
+      option: buildImprovementOption(students, chartTypes?.improvement),
     },
     {
       id: 'score-band',
       title: '分数段结构变化',
       description: '按优秀、60~80、40~60、低分段拆解每次考试的班级结构。',
-      option: buildScoreBandOption(exams),
+      option: buildScoreBandOption(exams, chartTypes?.scoreBand),
     },
   ];
 }

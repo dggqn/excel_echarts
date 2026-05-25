@@ -1,245 +1,168 @@
-import { useMemo, useState } from 'react';
-import { AnalysisPager } from './components/AnalysisPager';
-import { ChartCard } from './components/ChartCard';
-import { UploadPanel } from './components/UploadPanel';
-import { ReportSummary } from './components/ReportSummary';
-import { StudentTrendCarousel } from './components/StudentTrendCarousel';
-import { StudentTable } from './components/StudentTable';
+import { useState } from 'react';
+import { AnalysisPage } from './components/AnalysisPage';
+import { ExportResultPage } from './components/ExportResultPage';
+import { HomeUploadPage } from './components/HomeUploadPage';
+import { cloneDefaultReportConfig } from './features/config/reportConfig';
 import { parseWorkbook } from './features/excel/parseWorkbook';
-import {
-  buildAbsentExamNames,
-  calculateAverageScore,
-  calculateImprovement,
-  getFirstValidScore,
-  getLastValidScore,
-} from './features/rules/scoreRules';
 import { buildCharts, buildReportPlan } from './features/schema/buildReportPlan';
-import type { ExamScoreStatus, ReportPlan } from './lib/types';
+import type { ReportConfig, UploadedReportFile } from './lib/types';
 
-const sampleExams = [
-  '摸底考试（2025.08.01）',
-  '暑期结业考（2025.08.22）',
-  '模拟考试（2025.10.29）',
-  '11月香港留考',
-  '期末考试（2026.01.28）',
-  '第1次模考（2026.03.19）',
-  '第2次模考（2026.04.02）',
-  '第3次模考（2026.04.16）',
-  '第4次模考（2026.04.23）',
-  '第5次模考（2026.05.07）',
-];
-
-const sampleStudents = [
-  {
-    id: '23031',
-    name: '龚一宸',
-    studentNo: '23031',
-    scores: [16, 77, 49, 53, 45, 56, 73, 42, 50, 65],
-    correctCounts: [2, 14, 9, null, 7, 9, 13, 6, 9, 13],
-  },
-  {
-    id: '23032',
-    name: '赵梓桐',
-    studentNo: '23032',
-    scores: [45, 93, 79, 67, 79, 82, 85, 91, 100, 100],
-    correctCounts: [7, 18, 14, null, 14, 16, 17, 19, 20, 20],
-  },
-  {
-    id: '23037',
-    name: '宋天麦',
-    studentNo: '23037',
-    scores: [56, 91, 86, 71, 74, 100, 92, 86, 85, 94],
-    correctCounts: [8, 19, 15, null, 14, 20, 18, 16, 16, 18],
-  },
-].map((student) => {
-  const examStatuses = student.scores.map(() => 'normal' as ExamScoreStatus);
-  const { improvement, note } = calculateImprovement(student.scores, examStatuses);
-
-  return {
-    ...student,
-    displayScores: student.scores.map((score) => score ?? 0),
-    examStatuses,
-    absentExamNames: buildAbsentExamNames([], examStatuses),
-    firstScore: getFirstValidScore(student.scores),
-    lastScore: getLastValidScore(student.scores),
-    improvement,
-    improvementNote: note,
-    averageScore: calculateAverageScore(student.scores),
-  };
-});
-
-const sampleReport: ReportPlan = {
-  title: '成绩单多图分析报告',
-  sourceFileName: '示例成绩单.xlsx',
-  sheetName: '成绩表',
-  templateName: '成绩单宽表模板',
-  selectedStudentId: '23037',
-  exams: sampleExams.map((name, index) => ({
-    id: `sample-exam-${index + 1}`,
-    name,
-    correctColumn: index * 2 + 3,
-    scoreColumn: index * 2 + 4,
-    averageScore: [31, 72.2, 57.5, 58.7, 55.9, 60.7, 65, 64.8, 67.3, 72.5][index],
-    passRate: [0, 0.8, 0.4, 0.5, 0.5, 0.5, 0.6, 0.6, 0.6, 0.7][index],
-    excellentRate: [0, 0.4, 0.1, 0, 0, 0.2, 0.2, 0.2, 0.4, 0.4][index],
-    midRate: [0, 0.4, 0.3, 0.5, 0.5, 0.3, 0.4, 0.4, 0.2, 0.3][index],
-    lowRate: [0.6, 0.1, 0.1, 0, 0.3, 0.1, 0.1, 0.1, 0.1, 0][index],
-    analysis: [
-      '【真题卷：2019年6月香港卷】\n1、考试内容：留考化学全部内容\n2、分析：正式复习前摸底，整体基础较弱。',
-      '【阶段测试卷：暑期复习内容检测】\n1、考试内容：基础模块\n2、分析：刚复习过，均分明显提高。',
-      '【真题卷：2024年6月香港卷】\n1、考试内容：留考化学全部内容\n2、分析：对比摸底考试已有进步。',
-      '【真题卷：2025年11月香港卷】\n1、考试内容：留考化学全部内容\n2、分析：暂未完全复习完，成绩位于中等左右。',
-      '【真题卷：2023年6月香港卷】\n1、考试内容：留考化学全部内容\n2、分析：尖子生较少，对知识还不够熟练。',
-      '【模拟卷】\n1、考试内容：留考化学全部内容\n2、分析：对比期末考试大部分都有进步。',
-      '【模拟卷】\n1、考试内容：留考化学全部内容\n2、分析：中等成绩学生进步明显，进入二轮复习后要加强练习。',
-      '【真题卷21年6月】\n1、考试内容：留考化学全部内容\n2、分析：大部分学生成绩稳定，个别学生进步明显。',
-      '【真题卷20年11月】\n1、考试内容：留考化学全部内容\n2、分析：大部分学生稳定或稳步提升。',
-      '【真题卷21年11月】\n1、考试内容：留考化学全部内容\n2、分析：大部分学生成绩稳定，正确题数稳步提升。',
-    ][index],
-  })),
-  students: sampleStudents,
-  charts: [],
-};
-
-sampleReport.students = sampleReport.students.map((student) => ({
-  ...student,
-  absentExamNames: buildAbsentExamNames(sampleReport.exams, student.examStatuses),
-}));
-
-sampleReport.charts = buildCharts(sampleReport.exams, sampleReport.students);
+type AppPage = 'upload' | 'analysis' | 'export';
 
 function App() {
-  const [report, setReport] = useState<ReportPlan>(sampleReport);
-  const [status, setStatus] = useState('当前展示的是示例数据，可上传 Excel 替换。');
-  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState<AppPage>('upload');
+  const [files, setFiles] = useState<UploadedReportFile[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const selectedStudent = useMemo(
-    () => report.students.find((student) => student.id === report.selectedStudentId) ?? report.students[0],
-    [report],
-  );
+  const activeFile = files.find((file) => file.id === activeFileId) ?? files.find((file) => file.status === 'ready');
 
-  const handleFile = async (file: File) => {
-    setError(null);
-    setStatus(`正在解析 ${file.name} ...`);
+  const handleFilesSelected = (nextFiles: FileList | File[]) => {
+    const incoming = Array.from(nextFiles).filter((file) => /\.(xlsx|xls|csv)$/i.test(file.name));
+    const uploadedAt = new Date().toISOString();
 
-    try {
-      const nextWorkbook = await parseWorkbook(file);
-      const nextReport = buildReportPlan(nextWorkbook);
-      setReport(nextReport);
-      setStatus(`已解析 ${file.name}，生成 ${nextReport.charts.length} 张图表和 ${nextReport.exams.length} 页考试分析。`);
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Excel 解析失败。');
-      setStatus('解析失败，请检查文件格式或表头结构。');
+    setFiles((currentFiles) => [
+      ...currentFiles,
+      ...incoming.map((file, index) => ({
+        id: `${Date.now()}-${index}-${file.name}`,
+        fileName: buildDisplayName(file.name, currentFiles, index),
+        fileSize: file.size,
+        uploadedAt,
+        status: 'queued' as const,
+        file,
+        config: cloneDefaultReportConfig(),
+      })),
+    ]);
+  };
+
+  const handleRemoveFile = (fileId: string) => {
+    setFiles((currentFiles) => currentFiles.filter((file) => file.id !== fileId));
+    if (activeFileId === fileId) {
+      setActiveFileId(null);
     }
   };
 
-  const resetDemo = () => {
-    setReport(sampleReport);
-    setError(null);
-    setStatus('已切换回示例数据。');
+  const handleSubmitUpload = async () => {
+    const parsedFiles = await Promise.all(
+      files.map(async (uploadedFile) => {
+        if (!uploadedFile.file) {
+          return uploadedFile;
+        }
+
+        try {
+          const workbook = await parseWorkbook(uploadedFile.file);
+          const report = buildReportPlan(workbook);
+          report.charts = buildCharts(report.exams, report.students, uploadedFile.config);
+          return {
+            ...uploadedFile,
+            status: 'ready' as const,
+            report,
+            error: undefined,
+          };
+        } catch (error) {
+          return {
+            ...uploadedFile,
+            status: 'error' as const,
+            error: error instanceof Error ? error.message : '解析失败',
+          };
+        }
+      }),
+    );
+
+    setFiles(parsedFiles);
+    setActiveFileId(parsedFiles.find((file) => file.status === 'ready')?.id ?? parsedFiles[0]?.id ?? null);
+    setPage('analysis');
   };
 
-  const handleStudentChange = (studentId: string) => {
-    setReport((currentReport) => {
-      const nextStudent = currentReport.students.find((student) => student.id === studentId);
+  const handleConfigChange = (fileId: string, config: ReportConfig) => {
+    setFiles((currentFiles) =>
+      currentFiles.map((file) => {
+        if (file.id !== fileId) {
+          return file;
+        }
 
-      if (!nextStudent) {
-        return currentReport;
-      }
+        if (!file.report) {
+          return { ...file, config };
+        }
 
-      return {
-        ...currentReport,
-        selectedStudentId: studentId,
-        charts: buildCharts(currentReport.exams, currentReport.students),
-      };
-    });
+        return {
+          ...file,
+          config,
+          report: {
+            ...file.report,
+            charts: buildCharts(file.report.exams, file.report.students, config),
+          },
+        };
+      }),
+    );
   };
 
-  return (
-    <main className="app-shell">
-      <section className="hero-panel">
-        <div className="hero-copy">
-          <p className="eyebrow">Excel ECharts Report Lab</p>
-          <h1>上传 Excel，一键生成可交付的垂直图表报告。</h1>
-          <p className="hero-description">
-            当前 MVP 以成绩单宽表为标准模板，自动生成多张图表、学生汇总表和可翻页考试分析。
-          </p>
-          <div className="hero-actions">
-            <UploadPanel onFileSelected={handleFile} />
-            <button className="ghost-button" type="button" onClick={resetDemo}>
-              查看示例
-            </button>
-          </div>
-          <p className="status-line">{status}</p>
-          {error ? <p className="error-line">{error}</p> : null}
-        </div>
+  const handleStudentChange = (fileId: string, studentId: string) => {
+    setFiles((currentFiles) =>
+      currentFiles.map((file) => {
+        if (file.id !== fileId || !file.report) {
+          return file;
+        }
 
-        <div className="metric-stack" aria-label="产品验证指标">
-          <div>
-            <span>01</span>
-            <strong>{report.exams.length} 次考试</strong>
-            <p>识别合并表头下的正确题数与成绩列。</p>
-          </div>
-          <div>
-            <span>02</span>
-            <strong>{report.charts.length} 张图表</strong>
-            <p>个人趋势、班级趋势、排名、提升、分数段。</p>
-          </div>
-          <div>
-            <span>03</span>
-            <strong>{report.students.length} 名学生</strong>
-            <p>本地解析数据，不上传服务器。</p>
-          </div>
-        </div>
-      </section>
+        const report = {
+          ...file.report,
+          selectedStudentId: studentId,
+          charts: buildCharts(file.report.exams, file.report.students, file.config),
+        };
 
-      <section className="card report-card">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Report Overview</p>
-            <h2>{report.title}</h2>
-            <p className="chart-description">
-              {report.sourceFileName} / {report.sheetName} / 当前个人趋势：{selectedStudent.name}
-            </p>
-          </div>
-        </div>
-        <ReportSummary report={report} />
-      </section>
+        return { ...file, report };
+      }),
+    );
+  };
 
-      <StudentTrendCarousel
-        exams={report.exams}
-        students={report.students}
-        selectedStudentId={report.selectedStudentId}
+  if (page === 'upload') {
+    return (
+      <HomeUploadPage
+        files={files}
+        isDragging={isDragging}
+        onDragChange={setIsDragging}
+        onFilesSelected={handleFilesSelected}
+        onRemoveFile={handleRemoveFile}
+        onSubmit={handleSubmitUpload}
+      />
+    );
+  }
+
+  if (page === 'export') {
+    return (
+      <ExportResultPage
+        file={activeFile ?? null}
+        onBackAnalysis={() => setPage('analysis')}
+        onBackHome={() => setPage('upload')}
         onStudentChange={handleStudentChange}
       />
+    );
+  }
 
-      <section className="chart-gallery">
-        {report.charts.map((chart) => (
-          <ChartCard chart={chart} key={chart.id} />
-        ))}
-      </section>
-
-      <section className="card data-card">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Analysis Pages</p>
-            <h2>考试情况分析</h2>
-          </div>
-        </div>
-        <AnalysisPager exams={report.exams} />
-      </section>
-
-      <section className="card data-card">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Student Data</p>
-            <h2>学生汇总表</h2>
-          </div>
-        </div>
-        <StudentTable students={report.students} />
-      </section>
-    </main>
+  return (
+    <AnalysisPage
+      files={files}
+      activeFileId={activeFile?.id ?? null}
+      onActiveFileChange={setActiveFileId}
+      onBackHome={() => setPage('upload')}
+      onExport={() => setPage('export')}
+      onConfigChange={handleConfigChange}
+      onStudentChange={handleStudentChange}
+    />
   );
+}
+
+function buildDisplayName(fileName: string, currentFiles: UploadedReportFile[], offset: number) {
+  const sameNameCount = currentFiles.filter((file) => file.fileName.startsWith(fileName)).length + offset;
+
+  if (sameNameCount === 0) {
+    return fileName;
+  }
+
+  const dotIndex = fileName.lastIndexOf('.');
+  const base = dotIndex > -1 ? fileName.slice(0, dotIndex) : fileName;
+  const ext = dotIndex > -1 ? fileName.slice(dotIndex) : '';
+  return `${base}(${sameNameCount + 1})${ext}`;
 }
 
 export default App;

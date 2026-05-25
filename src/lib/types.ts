@@ -75,4 +75,39 @@ export type ReportPlan = {
   charts: ChartSpec[];
 };
 
+export type ChartVisibilityConfig = {
+  studentTrend: boolean;
+  classTrend: boolean;
+  latestRanking: boolean;
+  improvement: boolean;
+  scoreBand: boolean;
+  analysisPages: boolean;
+  studentTable: boolean;
+};
+
+export type ChartTypeConfig = {
+  studentTrend: 'line' | 'bar' | 'line-bar';
+  classTrend: 'bar-line' | 'line' | 'bar';
+  latestRanking: 'horizontal-bar' | 'pie';
+  improvement: 'horizontal-bar' | 'vertical-bar';
+  scoreBand: 'stacked-bar' | 'pie';
+};
+
+export type ReportConfig = {
+  enabledCharts: ChartVisibilityConfig;
+  chartTypes: ChartTypeConfig;
+};
+
+export type UploadedReportFile = {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  uploadedAt: string;
+  status: 'queued' | 'ready' | 'error';
+  file?: File;
+  report?: ReportPlan;
+  error?: string;
+  config: ReportConfig;
+};
+
 export type ChartOption = EChartsOption;

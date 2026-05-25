@@ -1,4 +1,4 @@
-import type { ChartOption, ExamInfo, StudentRecord } from '../../lib/types';
+import type { ChartOption, ChartTypeConfig, ExamInfo, StudentRecord } from '../../lib/types';
 import { getDisplayScoreForRank } from '../rules/scoreRules';
 
 const palette = {
@@ -15,8 +15,11 @@ export function buildStudentTrendOption(
   student: StudentRecord,
   exams: ExamInfo[],
   students: StudentRecord[],
+  chartType: ChartTypeConfig['studentTrend'] = 'line',
 ): ChartOption {
   const averages = exams.map((exam) => exam.averageScore);
+  const scoreSeriesType = chartType === 'bar' ? 'bar' : 'line';
+  const averageSeriesType = chartType === 'line' ? 'line' : 'bar';
 
   return {
     backgroundColor: 'transparent',
@@ -51,10 +54,14 @@ export function buildStudentTrendOption(
     series: [
       {
         name: '班级平均分',
-        type: 'bar',
+        type: averageSeriesType,
         data: averages,
         barWidth: 28,
+        smooth: averageSeriesType === 'line',
         itemStyle: { color: 'rgba(199, 109, 29, 0.28)', borderRadius: [8, 8, 0, 0] },
+        lineStyle: { width: 2, type: 'dashed' },
+        symbol: averageSeriesType === 'line' ? 'diamond' : undefined,
+        symbolSize: averageSeriesType === 'line' ? 8 : undefined,
         label: {
           show: true,
           position: 'top',
@@ -64,11 +71,12 @@ export function buildStudentTrendOption(
       },
       {
         name: '学生成绩',
-        type: 'line',
+        type: scoreSeriesType,
         data: student.displayScores,
-        smooth: true,
+        smooth: scoreSeriesType === 'line',
         symbol: 'circle',
         symbolSize: 10,
+        barWidth: scoreSeriesType === 'bar' ? 22 : undefined,
         lineStyle: { width: 3 },
         label: {
           show: true,
@@ -105,7 +113,13 @@ export function buildStudentTrendOption(
   };
 }
 
-export function buildClassTrendOption(exams: ExamInfo[]): ChartOption {
+export function buildClassTrendOption(
+  exams: ExamInfo[],
+  chartType: ChartTypeConfig['classTrend'] = 'bar-line',
+): ChartOption {
+  const averageSeriesType = chartType === 'line' ? 'line' : 'bar';
+  const rateSeriesType = chartType === 'bar' ? 'bar' : 'line';
+
   return {
     backgroundColor: 'transparent',
     color: [palette.amber, palette.green, palette.teal],
@@ -138,33 +152,41 @@ export function buildClassTrendOption(exams: ExamInfo[]): ChartOption {
     series: [
       {
         name: '平均分',
-        type: 'bar',
+        type: averageSeriesType,
         data: exams.map((exam) => exam.averageScore),
         barWidth: 28,
+        smooth: averageSeriesType === 'line',
         itemStyle: { color: 'rgba(199, 109, 29, 0.32)', borderRadius: [8, 8, 0, 0] },
+        lineStyle: { width: 3 },
         label: { show: true, position: 'top', color: '#a85d1c', formatter: ({ value }) => formatValue(value) },
       },
       {
         name: '及格率',
-        type: 'line',
+        type: rateSeriesType,
         yAxisIndex: 1,
         data: exams.map((exam) => toPercent(exam.passRate)),
-        smooth: true,
+        smooth: rateSeriesType === 'line',
+        barWidth: rateSeriesType === 'bar' ? 18 : undefined,
         lineStyle: { width: 3 },
       },
       {
         name: '优秀率',
-        type: 'line',
+        type: rateSeriesType,
         yAxisIndex: 1,
         data: exams.map((exam) => toPercent(exam.excellentRate)),
-        smooth: true,
+        smooth: rateSeriesType === 'line',
+        barWidth: rateSeriesType === 'bar' ? 18 : undefined,
         lineStyle: { width: 3 },
       },
     ],
   };
 }
 
-export function buildLatestRankingOption(students: StudentRecord[], exams: ExamInfo[]): ChartOption {
+export function buildLatestRankingOption(
+  students: StudentRecord[],
+  exams: ExamInfo[],
+  chartType: ChartTypeConfig['latestRanking'] = 'horizontal-bar',
+): ChartOption {
   const latestExam = exams.at(-1);
   const latestIndex = exams.length - 1;
   const ranked = [...students]
@@ -175,6 +197,29 @@ export function buildLatestRankingOption(students: StudentRecord[], exams: ExamI
     }))
     .filter((item): item is { name: string; score: number; status: StudentRecord['examStatuses'][number] } => item.score !== null)
     .sort((a, b) => b.score - a.score);
+
+  if (chartType === 'pie') {
+    return {
+      backgroundColor: 'transparent',
+      color: ['#0f6b78', '#5b9a72', '#c76d1d', '#a43e64', '#8fa89c'],
+      tooltip: { trigger: 'item', formatter: '{b}: {c} 分 ({d}%)' },
+      legend: { type: 'scroll', orient: 'vertical', right: 8, top: 24, bottom: 24 },
+      series: [
+        {
+          name: latestExam?.name ?? '最近一次考试',
+          type: 'pie',
+          radius: ['36%', '68%'],
+          center: ['42%', '52%'],
+          data: ranked.map((item) => ({
+            name: item.status === 'absent' ? `${item.name}（缺考）` : item.name,
+            value: item.score,
+            itemStyle: item.status === 'absent' ? { color: palette.berry } : undefined,
+          })),
+          label: { formatter: '{b}\n{c}分' },
+        },
+      ],
+    };
+  }
 
   return {
     backgroundColor: 'transparent',
@@ -221,10 +266,45 @@ export function buildLatestRankingOption(students: StudentRecord[], exams: ExamI
   };
 }
 
-export function buildImprovementOption(students: StudentRecord[]): ChartOption {
+export function buildImprovementOption(
+  students: StudentRecord[],
+  chartType: ChartTypeConfig['improvement'] = 'horizontal-bar',
+): ChartOption {
   const ranked = [...students]
     .filter((student): student is StudentRecord & { improvement: number } => student.improvement !== null)
     .sort((a, b) => b.improvement - a.improvement);
+
+  if (chartType === 'vertical-bar') {
+    return {
+      backgroundColor: 'transparent',
+      color: [palette.green],
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: 52, right: 32, top: 36, bottom: 72, containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: ranked.map((student) => student.name),
+        axisLabel: { color: palette.ink, rotate: 28 },
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: { color: palette.muted },
+        splitLine: { lineStyle: { color: palette.grid, type: 'dashed' } },
+      },
+      series: [
+        {
+          name: '首末提升',
+          type: 'bar',
+          data: ranked.map((student) => student.improvement),
+          barWidth: 22,
+          itemStyle: {
+            borderRadius: [10, 10, 0, 0],
+            color: ({ value }) => (Number(value) >= 0 ? palette.green : palette.berry),
+          },
+          label: { show: true, position: 'top', color: palette.ink, fontWeight: 700 },
+        },
+      ],
+    };
+  }
 
   return {
     backgroundColor: 'transparent',
@@ -257,7 +337,10 @@ export function buildImprovementOption(students: StudentRecord[]): ChartOption {
   };
 }
 
-export function buildScoreBandOption(exams: ExamInfo[]): ChartOption {
+export function buildScoreBandOption(
+  exams: ExamInfo[],
+  chartType: ChartTypeConfig['scoreBand'] = 'stacked-bar',
+): ChartOption {
   const normalRates = exams.map((exam) => {
     if (exam.excellentRate === null || exam.midRate === null || exam.lowRate === null) {
       return null;
@@ -269,6 +352,34 @@ export function buildScoreBandOption(exams: ExamInfo[]): ChartOption {
     const normal = 1 - excellent - mid - low;
     return Number((Math.max(0, normal) * 100).toFixed(2));
   });
+
+  if (chartType === 'pie') {
+    const latestIndex = exams.length - 1;
+    const latestExam = exams[latestIndex];
+
+    return {
+      backgroundColor: 'transparent',
+      color: ['#0f6b78', '#5b9a72', '#c76d1d', '#a43e64'],
+      tooltip: { trigger: 'item', formatter: '{b}: {c}% ({d}%)' },
+      legend: { bottom: 8, left: 'center' },
+      series: [
+        {
+          name: latestExam?.name ?? '最近一次考试',
+          type: 'pie',
+          radius: ['34%', '68%'],
+          center: ['50%', '45%'],
+          data: [
+            { name: '优秀率', value: toPercent(latestExam?.excellentRate ?? null) ?? 0 },
+            { name: '60~80', value: toPercent(latestExam?.midRate ?? null) ?? 0 },
+            { name: '40~60', value: normalRates[latestIndex] ?? 0 },
+            { name: '低分率', value: toPercent(latestExam?.lowRate ?? null) ?? 0 },
+          ],
+          label: { formatter: '{b}\n{c}%' },
+        },
+      ],
+      graphic: buildFooterGraphic(`当前展示：${latestExam?.name ?? '最近一次考试'}`),
+    };
+  }
 
   return {
     backgroundColor: 'transparent',

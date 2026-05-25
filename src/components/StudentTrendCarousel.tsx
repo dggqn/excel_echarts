@@ -3,12 +3,13 @@ import * as echarts from 'echarts';
 import { ChartPreview } from './ChartPreview';
 import { ExportButton } from './ExportButton';
 import { buildStudentTrendOption } from '../features/charts/reportCharts';
-import type { ExamInfo, StudentRecord } from '../lib/types';
+import type { ChartTypeConfig, ExamInfo, StudentRecord } from '../lib/types';
 
 type StudentTrendCarouselProps = {
   exams: ExamInfo[];
   students: StudentRecord[];
   selectedStudentId: string;
+  chartType: ChartTypeConfig['studentTrend'];
   onStudentChange: (studentId: string) => void;
 };
 
@@ -16,6 +17,7 @@ export function StudentTrendCarousel({
   exams,
   students,
   selectedStudentId,
+  chartType,
   onStudentChange,
 }: StudentTrendCarouselProps) {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -25,8 +27,8 @@ export function StudentTrendCarousel({
   );
   const selectedStudent = students[selectedIndex] ?? students[0];
   const option = useMemo(
-    () => buildStudentTrendOption(selectedStudent, exams, students),
-    [exams, selectedStudent, students],
+    () => buildStudentTrendOption(selectedStudent, exams, students, chartType),
+    [chartType, exams, selectedStudent, students],
   );
 
   const goPrev = () => {
@@ -43,7 +45,7 @@ export function StudentTrendCarousel({
 
   const exportAllStudents = async () => {
     for (const student of students) {
-      await exportStudentTrend(student, exams, students);
+      await exportStudentTrend(student, exams, students, chartType);
     }
   };
 
@@ -111,7 +113,12 @@ export function StudentTrendCarousel({
   );
 }
 
-async function exportStudentTrend(student: StudentRecord, exams: ExamInfo[], students: StudentRecord[]) {
+async function exportStudentTrend(
+  student: StudentRecord,
+  exams: ExamInfo[],
+  students: StudentRecord[],
+  chartType: ChartTypeConfig['studentTrend'],
+) {
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.left = '-9999px';
@@ -121,7 +128,7 @@ async function exportStudentTrend(student: StudentRecord, exams: ExamInfo[], stu
   document.body.appendChild(container);
 
   const chart = echarts.init(container, undefined, { renderer: 'canvas' });
-  chart.setOption(buildStudentTrendOption(student, exams, students), true);
+  chart.setOption(buildStudentTrendOption(student, exams, students, chartType), true);
   await new Promise((resolve) => window.setTimeout(resolve, 80));
 
   const url = chart.getDataURL({
